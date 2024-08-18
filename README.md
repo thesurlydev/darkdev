@@ -1,9 +1,14 @@
 # darkdev
 
-A proof of concept project to demonstrate how to use Rust as a wrapper for rapid development of a Java application.
+A proof of concept project to demonstrate how to use Rust as a wrapper for rapid development of multiple distributed applications.
 
 The idea is to enable fast feedback loops without a lot of manual steps.
 
+## Features
+
+* Watch multiple projects and their dependencies
+* Externalized configuration
+* Support for arbitrary "modes" (e.g. compile, test, run, etc.) with configurable commands
 
 ## Usage
 
@@ -22,23 +27,11 @@ Then, make changes to the Java code or `pom.xml` and observe the output of the f
 
 ## Roadmap
 
-### Configurable Behavior
-
-Allow for arbitrary commands and feedback loops to be defined in a configuration file.
-
-### Watch Modes
-
-Allow for different watch modes to be used such as:
-
-* watch and compile
-* watch and test
-* watch, compile, test and deploy (if tests pass)
-
 ### Infrastructure
 
 Tight integration with infrastructure management tools.
 
-### Observability
+### OpenTelemetry Integration
 
 ### Git Integration
 
