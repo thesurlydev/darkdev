@@ -1,0 +1,42 @@
+# Global settings for the build system
+[global]
+# Specify the default mode for all projects (can be overridden per project)
+default_mode = "compile"
+# Global paths to watch for changes (can be inherited or overridden)
+watch_paths = ["src/main/java", "pom.xml"] # Inherits and overrides global paths
+# Global file extensions to monitor (can be inherited or overridden)
+watch_extensions = ["java", "xml"]
+
+# Define all projects with their specific settings
+[projects]
+
+# Project A configuration
+[projects.project_a]
+# Path to the project directory
+project_dir = "project-a"
+# Override or add paths to watch for changes
+# Inherit global file extensions (no need to redefine)
+# List of dependent projects that should be built first
+dependencies = ["project_b"]
+# Override the default mode if needed
+mode = "run"
+
+# Commands specific to each mode for Project A
+[projects.project_a.commands]
+compile = { program = "mvn", args = ["-q", "compile"] }
+test = { program = "mvn", args = ["-q", "test"] }
+run = { program = "mvn", args = ["-q", "exec:java", "-Dexec.mainClass=dev.surly.a.HelloWorld"] }
+
+# Project B configuration
+[projects.project_b]
+project_dir = "project-b"
+# Inherit global watch paths and extensions
+dependencies = []
+mode = "install"
+# Use the global default_mode
+
+# Commands specific to each mode for Project B
+[projects.project_b.commands]
+compile = { program = "mvn", args = ["-q", "compile"] }
+test = { program = "mvn", args = ["-q", "test"] }
+install = { program = "mvn", args = ["-q", "install"] }
