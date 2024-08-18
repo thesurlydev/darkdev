@@ -2,10 +2,11 @@
 [global]
 # Specify the default mode for all projects (can be overridden per project)
 default_mode = "compile"
+logging_level = "info"
 # Global paths to watch for changes (can be inherited or overridden)
 watch_paths = ["src/main/java", "pom.xml"] # Inherits and overrides global paths
 # Global file extensions to monitor (can be inherited or overridden)
-watch_extensions = ["java", "xml"]
+watch_extensions = ["java", "kt", "kts", "xml"]
 
 # Define all projects with their specific settings
 [projects]
@@ -40,3 +41,16 @@ mode = "install"
 compile = { program = "mvn", args = ["-q", "compile"] }
 test = { program = "mvn", args = ["-q", "test"] }
 install = { program = "mvn", args = ["-q", "install"] }
+
+# kotlin-minimal-example
+[projects.kotlin_minimal_example]
+project_dir = "/home/shane/projects/kotlin-minimal-example"
+watch_paths = ["src/main/kotlin", "build.gradle.kts"]
+dependencies = []
+mode = "jar_run"
+
+[projects.kotlin_minimal_example.commands]
+compile = { program = "./gradlew", args = ["clean", "build"] }
+test = { program = "./gradlew", args = ["test"] }
+jar = { program = "./gradlew", args = ["jar"] }
+jar_run = { program = "java", args = ["-jar", "build/libs/kotlin-minimal-example-1.0-SNAPSHOT-standalone.jar"] }

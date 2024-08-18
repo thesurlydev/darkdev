@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate log;
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Result, Watcher};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -5,14 +7,16 @@ use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Child};
+use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio::sync::mpsc;
 
+
 #[derive(Debug, Deserialize, Clone)]
 struct GlobalConfig {
     default_mode: String,
+    logging_level: String,
     watch_paths: Vec<String>,
     watch_extensions: Vec<String>,
 }
@@ -20,7 +24,7 @@ struct GlobalConfig {
 #[derive(Debug, Deserialize, Clone)]
 struct WatchConfig {
     global: GlobalConfig,
-    projects: HashMap<String, ProjectConfig>,    
+    projects: HashMap<String, ProjectConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -42,6 +46,20 @@ struct ModeConfig {
 #[tokio::main]
 async fn main() -> Result<()> {
     let config = load_config("watch-config.toml").expect("Failed to load config file.");
+
+    // logging setup
+    let mut builder = pretty_env_logger::formatted_builder();
+    builder.filter_level(match config.global.logging_level.as_str() {
+        "trace" => log::LevelFilter::Trace,
+        "debug" => log::LevelFilter::Debug,
+        "info" => log::LevelFilter::Info,
+        "warn" => log::LevelFilter::Warn,
+        "error" => log::LevelFilter::Error,
+        _ => log::LevelFilter::Info,
+    });
+    builder.init();
+
+    info!("Loaded config");
 
     let (tx, mut rx) = mpsc::channel(1);
 
@@ -67,7 +85,10 @@ async fn main() -> Result<()> {
                 if let Ok(event) = res {
                     tx_clone
                         .blocking_send((project_name.clone(), event))
-                        .expect("Failed to send event.");
+                        .map_err(|e| {
+                            error!(target: &project_name, "Failed to send event: {}", e);
+                            e
+                        }).expect("Failed to send event");
                 }
             },
             Config::default(),
@@ -81,7 +102,7 @@ async fn main() -> Result<()> {
         watchers.push(watcher);
     }
 
-    println!("Watching for file changes...");
+    info!("Watching for file changes...");
 
     let running_processes: Arc<Mutex<HashMap<String, Option<Child>>>> = Arc::new(Mutex::new(HashMap::new()));
 
@@ -95,7 +116,7 @@ async fn main() -> Result<()> {
                     .unwrap_or(&config.global.watch_extensions);
 
                 if should_trigger(path, watch_extensions) {
-                    println!("Detected change in: {:?} for project {}", path, project_name);
+                    info!(target: &project_name, "Detected change in: {:?}", path);
 
                     for dep in &project_config.dependencies {
                         compile_and_run(
@@ -135,7 +156,7 @@ fn should_trigger(path: &Path, extensions: &[String]) -> bool {
 
 fn compile_and_run(
     global_config: &GlobalConfig,
-    project_config: &ProjectConfig,    
+    project_config: &ProjectConfig,
     running_processes: Arc<Mutex<HashMap<String, Option<Child>>>>,
 ) {
     let start_time = Instant::now();
@@ -146,34 +167,26 @@ fn compile_and_run(
 
         terminate_running_process(&project_config.project_dir, &running_processes);
 
-        println!(
-            "Executing command in {} with mode: {}...",
-            project_dir.display(),
-            mode
-        );
+        info!(target: &project_dir.display().to_string(), "Executing: {}", mode);
 
         let child = Command::new(&mode_config.program)
             .args(&mode_config.args)
             .current_dir(&project_dir)
             .spawn()
-            .expect("Failed to start process");
+            .map_err(|e| {
+                error!(target: &project_dir.display().to_string(), "Failed to start process: {}", e);                
+            }).expect("Failed to start process");
 
         let duration = start_time.elapsed();
 
-        println!(
-            "Command executed in {:.2?} for project {}.",
-            duration, project_config.project_dir
-        );
+        info!(target: &project_config.project_dir, "{} executed in {:.2?}", mode, duration);
 
         running_processes
             .lock()
             .unwrap()
             .insert(project_config.project_dir.clone(), Some(child));
     } else {
-        println!(
-            "No command defined for mode '{}' in project '{}'. Skipping...",
-            mode, project_config.project_dir
-        );
+        info!(target: &project_config.project_dir, "No command defined for mode '{}'. Skipping...",mode);
     }
 }
 
@@ -183,7 +196,7 @@ fn terminate_running_process(
 ) {
     if let Some(mut process) = running_processes.lock().unwrap().get_mut(project_dir).and_then(Option::take) {
         process.kill().expect("Failed to kill the running process.");
-        println!("Terminated the running process for project {}", project_dir);
+        info!(target: project_dir, "Terminated the running process");
     }
 }
 
