@@ -28,7 +28,6 @@
     </dependencies>
     <build>
         <plugins>
-            <!-- Compiler plugin to compile the project -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

@@ -1,10 +1,15 @@
 # Global settings for the build system
 [global]
+# Specify the default channel capacity
+channel_capacity = 100
 # Specify the default mode for all projects (can be overridden per project)
 default_mode = "compile"
+# Specify the default debounce delay in milliseconds
+debounce_delay = 1000
+# Specify the default logging level for all projects (can be overridden per project)
 logging_level = "info"
 # Global paths to watch for changes (can be inherited or overridden)
-watch_paths = ["src/main/java", "pom.xml"] # Inherits and overrides global paths
+watch_paths = ["src/main/java", "src/test/java", "pom.xml"] # Inherits and overrides global paths
 # Global file extensions to monitor (can be inherited or overridden)
 watch_extensions = ["java", "kt", "kts", "xml"]
 
@@ -26,7 +31,7 @@ mode = "run"
 [projects.project_a.commands]
 compile = { program = "mvn", args = ["-q", "compile"] }
 test = { program = "mvn", args = ["-q", "test"] }
-run = { program = "mvn", args = ["-q", "exec:java", "-Dexec.mainClass=dev.surly.a.HelloWorld"] }
+run = { program = "mvn", args = ["-q", "compile", "exec:java", "-Dexec.mainClass=dev.surly.a.HelloWorld"] }
 
 # Project B configuration
 [projects.project_b]
@@ -34,7 +39,6 @@ project_dir = "project-b"
 # Inherit global watch paths and extensions
 dependencies = []
 mode = "install"
-# Use the global default_mode
 
 # Commands specific to each mode for Project B
 [projects.project_b.commands]

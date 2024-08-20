@@ -34,7 +34,6 @@
 
     <build>
         <plugins>
-            <!-- Compiler plugin to compile the project -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -45,8 +44,6 @@
                     <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
-
-            <!-- Exec plugin to run the Java program -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -59,7 +56,7 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <mainClass>dev.surly.a.HelloWorld</mainClass> <!-- Update this to your main class -->
+                    <mainClass>dev.surly.a.HelloWorld</mainClass>
                 </configuration>
             </plugin>
         </plugins>

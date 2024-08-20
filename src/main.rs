@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
-use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Result, Watcher};
+use notify::{EventKind, RecursiveMode, Result, Watcher};
+use notify_debouncer_full::{new_debouncer, DebounceEventResult};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::error::Error;
@@ -9,7 +10,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::Duration;
 use tokio::sync::mpsc;
 
 
@@ -19,6 +20,8 @@ struct GlobalConfig {
     logging_level: String,
     watch_paths: Vec<String>,
     watch_extensions: Vec<String>,
+    channel_capacity: Option<usize>,
+    debounce_delay: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -30,10 +33,10 @@ struct WatchConfig {
 #[derive(Debug, Deserialize, Clone)]
 struct ProjectConfig {
     project_dir: String,
-    watch_paths: Option<Vec<String>>,      // Option to allow inheritance
-    watch_extensions: Option<Vec<String>>, // Option to allow inheritance
+    watch_paths: Option<Vec<String>>,
+    watch_extensions: Option<Vec<String>>,
     dependencies: Vec<String>,
-    mode: Option<String>,                  // Option to allow inheritance
+    mode: Option<String>,
     commands: HashMap<String, ModeConfig>,
 }
 
@@ -61,7 +64,7 @@ async fn main() -> Result<()> {
 
     info!("Loaded config");
 
-    let (tx, mut rx) = mpsc::channel(1);
+    let (tx, mut rx) = mpsc::channel(config.global.channel_capacity.unwrap_or(10));
 
     let mut watchers = Vec::new();
 
@@ -72,34 +75,36 @@ async fn main() -> Result<()> {
             .watch_paths
             .as_ref()
             .unwrap_or(&config.global.watch_paths);
-        /*let watch_extensions = project_config
-            .watch_extensions
-            .as_ref()
-            .unwrap_or(&config.global.watch_extensions);*/
 
         let project_dir = PathBuf::from(&project_config.project_dir);
 
         let tx_clone = tx.clone();
-        let mut watcher = RecommendedWatcher::new(
-            move |res| {
-                if let Ok(event) = res {
-                    tx_clone
-                        .blocking_send((project_name.clone(), event))
-                        .map_err(|e| {
+        let mut debouncer = new_debouncer(
+            Duration::from_millis(config.global.debounce_delay.unwrap_or(1000)),
+            None,
+            move |res: DebounceEventResult| {
+                if let Ok(events) = res {
+                    for event in events {
+                        if let Err(e) = tx_clone.try_send((project_name.clone(), event.event)) {
                             error!(target: &project_name, "Failed to send event: {}", e);
-                            e
-                        }).expect("Failed to send event");
+                        }
+                    }
+                } else if let Err(e) = res {
+                    error!(target: &project_name, "Error in debouncer: {:?}", e);
                 }
             },
-            Config::default(),
         )?;
 
         for path in watch_paths {
             let full_path = project_dir.join(path);
-            watcher.watch(&full_path, determine_mode(&full_path))?;
+            if !full_path.exists() {
+                warn!("Path does not exist: {:?}", full_path);
+                continue;
+            }
+            debouncer.watcher().watch(&full_path, determine_mode(&full_path))?;
         }
 
-        watchers.push(watcher);
+        watchers.push(debouncer);
     }
 
     info!("Watching for file changes...");
@@ -110,23 +115,21 @@ async fn main() -> Result<()> {
         if let EventKind::Modify(_) = event.kind {
             if let Some(path) = event.paths.get(0) {
                 let project_config = &config.projects[&project_name];
-                let watch_extensions = project_config
-                    .watch_extensions
-                    .as_ref()
+                let watch_extensions = project_config.watch_extensions.as_ref()
                     .unwrap_or(&config.global.watch_extensions);
 
                 if should_trigger(path, watch_extensions) {
                     info!(target: &project_name, "Detected change in: {:?}", path);
 
                     for dep in &project_config.dependencies {
-                        compile_and_run(
+                        execute_command(
                             &config.global,
                             &config.projects[dep],
                             running_processes.clone(),
                         );
                     }
 
-                    compile_and_run(
+                    execute_command(
                         &config.global,
                         project_config,
                         running_processes.clone(),
@@ -154,12 +157,11 @@ fn should_trigger(path: &Path, extensions: &[String]) -> bool {
         .map_or(false, |ext| extensions.iter().any(|e| e == ext))
 }
 
-fn compile_and_run(
+fn execute_command(
     global_config: &GlobalConfig,
     project_config: &ProjectConfig,
     running_processes: Arc<Mutex<HashMap<String, Option<Child>>>>,
 ) {
-    let start_time = Instant::now();
     let mode = project_config.mode.as_deref().unwrap_or(&global_config.default_mode);
 
     if let Some(mode_config) = project_config.commands.get(mode) {
@@ -174,12 +176,9 @@ fn compile_and_run(
             .current_dir(&project_dir)
             .spawn()
             .map_err(|e| {
-                error!(target: &project_dir.display().to_string(), "Failed to start process: {}", e);                
+                error!(target: &project_dir.display().to_string(), "Failed to start process: {}", e);
             }).expect("Failed to start process");
 
-        let duration = start_time.elapsed();
-
-        info!(target: &project_config.project_dir, "{} executed in {:.2?}", mode, duration);
 
         running_processes
             .lock()
