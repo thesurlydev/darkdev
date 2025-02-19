@@ -48,7 +48,7 @@ install = { program = "mvn", args = ["-q", "install"] }
 
 # kotlin-minimal-example
 [projects.kotlin_minimal_example]
-project_dir = "/home/shane/projects/kotlin-minimal-example"
+project_dir = "/Users/shane/projects/kotlin-minimal-example"
 watch_paths = ["src/main/kotlin", "build.gradle.kts"]
 dependencies = []
 mode = "jar_run"

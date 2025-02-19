@@ -8,8 +8,8 @@ class PersonTest {
 
     @Test
     void testPerson() {
-        Person person = new Person("Alice", 30);
-        assertEquals("Alice", person.getName());
-        assertEquals(30, person.getAge());
+        Person person = new Person("Alice", 30, "New York");
+        assertEquals("Alice", person.name());
+        assertEquals(30, person.age());
     }
 }
