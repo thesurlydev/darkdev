@@ -27,11 +27,8 @@ Then, make changes to the Java code or `pom.xml` and observe the output of the f
 
 ## Roadmap
 
-### Infrastructure
-
-Tight integration with infrastructure management tools.
-
-### OpenTelemetry Integration
-
-### Git Integration
+* Project bootstrap
+* Infrastructure
+* OpenTelemetry integration
+* Git integration
 
