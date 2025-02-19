@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 
-mod claude;
+use darkdev::claude;
 
 use notify_debouncer_full::notify::{EventKind, RecursiveMode, Result};
 use notify_debouncer_full::{new_debouncer, DebounceEventResult};

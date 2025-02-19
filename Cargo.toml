@@ -2,6 +2,16 @@
 name = "darkdev"
 version = "0.1.0"
 edition = "2021"
+description = "A development tool for watching and managing multiple projects"
+authors = ["Shane Shown"]
+
+[[bin]]
+name = "ddw"
+path = "src/bin/ddw.rs"
+
+[[bin]]
+name = "ddc"
+path = "src/bin/ddc.rs"
 
 [dependencies]
 notify = "8.0"
@@ -13,3 +23,4 @@ serde_derive = "1.0"
 pretty_env_logger = "0.5.0"
 log = "0.4"
 reqwest = { version = "0.12", features = ["json"] }
+clap = { version = "4.4", features = ["derive"] }

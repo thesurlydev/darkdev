@@ -82,4 +82,4 @@ mode = "run"
 [projects.darkdev.commands]
 compile = { program = "cargo", args = ["build"] }
 test = { program = "cargo", args = ["test"] }
-run = { program = "cargo", args = ["run"] }
+run = { program = "cargo", args = ["run", "--bin", "ddw"] }
