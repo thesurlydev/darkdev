@@ -1,12 +1,14 @@
 # darkdev
 
-A development tool written in Rust that provides real-time monitoring and automated actions for multiple projects. It enables fast feedback loops without manual intervention by watching your projects and executing configured commands when changes are detected.
+A development toolkit written in Rust that provides real-time monitoring and project management capabilities. It consists of two main components:
+
+- `ddw` (DarkDev Watch): A file watcher that monitors multiple projects and executes commands when changes are detected
+- `ddc` (DarkDev Command): A CLI tool for managing projects and their configurations
 
 ## Features
 
+### File Watcher (ddw)
 * **Multi-Project Support**: Watch and manage multiple projects simultaneously
-* **Flexible Configuration**: All settings are externalized in `watch-config.toml`
-* **Project Modes**: Support for multiple operational modes (compile, test, run, etc.) with configurable commands
 * **Smart Debouncing**: Prevents rapid-fire triggers when multiple files change
 * **Dependency Management**: Define project dependencies to ensure correct build order
 * **Customizable File Watching**:
@@ -14,9 +16,56 @@ A development tool written in Rust that provides real-time monitoring and automa
   * Set file extensions to monitor
   * Global defaults with per-project overrides
 
+### Project Manager (ddc)
+* **Project Initialization**: Bootstrap new projects with predefined templates
+* **Configuration Management**: Add, remove, and list projects in watch-config.toml
+* **Project Modes**: Configure different operational modes (compile, test, run) per project
+
+## Installation
+
+```bash
+cargo build --release
+```
+
+The binaries will be available in `target/release/`:
+- `ddw`: The file watcher
+- `ddc`: The project management CLI
+
+## Usage
+
+### Project Management (ddc)
+
+Use the `ddc` command to manage your projects:
+
+```bash
+# Initialize a new project
+ddc init --name my-project --project-type java
+
+# Add an existing project to watch
+ddc add --name my-project --path /path/to/project --mode run
+
+# List all watched projects
+ddc list
+
+# Remove a project from watch
+ddc remove --name my-project
+```
+
+### File Watching (ddw)
+
+Use the `ddw` command to start the file watcher:
+
+```bash
+# Start watching with default log level (info)
+ddw
+
+# Start watching with debug logging
+RUST_LOG=debug ddw
+```
+
 ## Configuration
 
-Configuration is managed through `watch-config.toml` with the following structure:
+Configuration is managed through `watch-config.toml`:
 
 ```toml
 [global]
@@ -36,25 +85,9 @@ compile = { program = "mvn", args = ["-q", "compile"] }
 run = { program = "mvn", args = ["-q", "exec:java"] }
 ```
 
-## Usage
-
-1. Configure your projects in `watch-config.toml`
-
-2. Build the project:
-   ```bash
-   cargo build --release
-   ```
-
-3. Run the watcher:
-   ```bash
-   RUST_LOG=info ./target/release/darkdev
-   ```
-
-4. Make changes to your watched files and observe the automated actions
-
 ## Logging
 
-Set the `RUST_LOG` environment variable to control log levels:
+Both tools support the following log levels via the `RUST_LOG` environment variable:
 - `error`: Only errors
 - `warn`: Warnings and errors
 - `info`: General information (recommended)
@@ -63,9 +96,16 @@ Set the `RUST_LOG` environment variable to control log levels:
 
 ## Roadmap
 
-* Project bootstrapping tools
-* Infrastructure automation
-* OpenTelemetry integration
-* Git integration
-* Watch pattern improvements
-* Cross-platform testing
+* Project Templates
+  * Java/Maven project templates
+  * Rust project templates
+  * Custom template support
+* Infrastructure
+  * Docker integration
+  * Kubernetes support
+* Monitoring
+  * OpenTelemetry integration
+  * Metrics collection
+* Version Control
+  * Git integration
+  * Branch-specific configurations
