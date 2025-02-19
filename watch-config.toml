@@ -11,7 +11,7 @@ logging_level = "info"
 # Global paths to watch for changes (can be inherited or overridden)
 watch_paths = ["src/main/java", "src/test/java", "pom.xml"] # Inherits and overrides global paths
 # Global file extensions to monitor (can be inherited or overridden)
-watch_extensions = ["java", "kt", "kts", "xml"]
+watch_extensions = ["java", "kt", "kts", "xml", "toml", "rs", "md"]
 
 # Define all projects with their specific settings
 [projects]
@@ -20,6 +20,7 @@ watch_extensions = ["java", "kt", "kts", "xml"]
 [projects.project_a]
 # Path to the project directory
 project_dir = "project-a"
+watch_paths = ["src", "pom.xml"]
 # Override or add paths to watch for changes
 # Inherit global file extensions (no need to redefine)
 # List of dependent projects that should be built first
@@ -58,3 +59,27 @@ compile = { program = "./gradlew", args = ["clean", "build"] }
 test = { program = "./gradlew", args = ["test"] }
 jar = { program = "./gradlew", args = ["jar"] }
 jar_run = { program = "java", args = ["-jar", "build/libs/kotlin-minimal-example-1.0-SNAPSHOT-standalone.jar"] }
+
+# Commands specific to codeloop
+[projects.codeloop]
+project_dir = "/Users/shane/projects/codeloop"
+watch_paths = ["src", "Cargo.toml"]
+dependencies = []
+mode = "run"
+
+[projects.codeloop.commands]
+compile = { program = "cargo", args = ["build"] }
+test = { program = "cargo", args = ["test"] }
+run = { program = "cargo", args = ["run"] }
+
+# Commands specific to darkdev
+[projects.darkdev]
+project_dir = "/Users/shane/projects/darkdev"
+watch_paths = ["src", "Cargo.toml", "watch-config.toml"]
+dependencies = []
+mode = "run"
+
+[projects.darkdev.commands]
+compile = { program = "cargo", args = ["build"] }
+test = { program = "cargo", args = ["test"] }
+run = { program = "cargo", args = ["run"] }

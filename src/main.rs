@@ -64,7 +64,13 @@ async fn main() -> Result<()> {
     });
     builder.init();
 
-    info!("Loaded config");
+    info!("Loaded config. Watching projects:");
+
+    // Log watched projects and their modes    
+    for (project_name, project_config) in &config.projects {
+        let mode = project_config.mode.as_ref().unwrap_or(&config.global.default_mode);
+        info!(" --> {} ({})", project_name, mode);
+    }
 
     let (tx, mut rx) = mpsc::channel(config.global.channel_capacity.unwrap_or(10));
 
