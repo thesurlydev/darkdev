@@ -15,11 +15,11 @@ The idea is to enable fast feedback loops without a lot of manual steps.
 ### Build and Run the Rust Watcher
 
 ```bash
-cargo build --release
+  cargo build --release
 ```
 
 ```bash
-./target/release/darkdev
+  ./target/release/darkdev
 ```
 
 Then, make changes to the Java code or `pom.xml` and observe the output of the feedback loop

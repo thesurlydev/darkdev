@@ -1,10 +1,9 @@
 #[macro_use]
 extern crate log;
-use notify::{EventKind, RecursiveMode, Result, Watcher};
+use notify_debouncer_full::notify::{EventKind, RecursiveMode, Result};
 use notify_debouncer_full::{new_debouncer, DebounceEventResult};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -101,7 +100,7 @@ async fn main() -> Result<()> {
                 warn!("Path does not exist: {:?}", full_path);
                 continue;
             }
-            debouncer.watcher().watch(&full_path, determine_mode(&full_path))?;
+            debouncer.watch(&full_path, determine_mode(&full_path))?;
         }
 
         watchers.push(debouncer);
@@ -142,7 +141,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn load_config(filename: &str) -> std::result::Result<WatchConfig, Box<dyn Error>> {
+fn load_config(filename: &str) -> std::result::Result<WatchConfig, Box<dyn std::error::Error>> {
     let mut file = File::open(filename)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
