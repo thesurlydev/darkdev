@@ -1,8 +1,6 @@
 #[macro_use]
 extern crate log;
 
-use darkdev::claude;
-
 use notify_debouncer_full::notify::{EventKind, RecursiveMode, Result};
 use notify_debouncer_full::{new_debouncer, DebounceEventResult};
 use serde::Deserialize;
