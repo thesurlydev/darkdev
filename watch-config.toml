@@ -30,9 +30,9 @@ modes = ["run"]
 
 # Commands specific to each mode for Project A
 [projects.project_a.commands]
-compile = { program = "mvn", args = ["-q", "compile"] }
-test = { program = "mvn", args = ["-q", "test"] }
-run = { program = "mvn", args = ["-q", "compile", "exec:java", "-Dexec.mainClass=dev.surly.a.HelloWorld"] }
+compile = { program = "mvn", args = ["-q", "compile"], run_on_startup = false }
+test = { program = "mvn", args = ["-q", "test"], run_on_startup = false }
+run = { program = "mvn", args = ["-q", "compile", "exec:java", "-Dexec.mainClass=dev.surly.a.HelloWorld"], run_on_startup = false }
 
 # Project B configuration
 [projects.project_b]
@@ -43,9 +43,9 @@ modes = ["install"]
 
 # Commands specific to each mode for Project B
 [projects.project_b.commands]
-compile = { program = "mvn", args = ["-q", "compile"] }
-test = { program = "mvn", args = ["-q", "test"] }
-install = { program = "mvn", args = ["-q", "install"] }
+compile = { program = "mvn", args = ["-q", "compile"], run_on_startup = false }
+test = { program = "mvn", args = ["-q", "test"], run_on_startup = false }
+install = { program = "mvn", args = ["-q", "install"], run_on_startup = false }
 
 # kotlin-minimal-example
 [projects.kotlin_minimal_example]
@@ -55,10 +55,10 @@ dependencies = []
 modes = ["jar_run"]
 
 [projects.kotlin_minimal_example.commands]
-compile = { program = "./gradlew", args = ["clean", "build"] }
-test = { program = "./gradlew", args = ["test"] }
-jar = { program = "./gradlew", args = ["jar"] }
-jar_run = { program = "java", args = ["-jar", "build/libs/kotlin-minimal-example-1.0-SNAPSHOT-standalone.jar"] }
+compile = { program = "./gradlew", args = ["clean", "build"], run_on_startup = false }
+test = { program = "./gradlew", args = ["test"], run_on_startup = false }
+jar = { program = "./gradlew", args = ["jar"], run_on_startup = false }
+jar_run = { program = "java", args = ["-jar", "build/libs/kotlin-minimal-example-1.0-SNAPSHOT-standalone.jar"], run_on_startup = false }
 
 
 # Commands specific to darkdev
@@ -69,7 +69,7 @@ dependencies = []
 modes = ["run_api"]
 
 [projects.darkdev.commands]
-compile = { program = "cargo", args = ["build"] }
-test = { program = "cargo", args = ["test"] }
-run_watch = { program = "cargo", args = ["run", "--bin", "ddw"] }
-run_api = { program = "cargo", args = ["run", "--bin", "dda"] }
+compile = { program = "cargo", args = ["build"], run_on_startup = false }
+test = { program = "cargo", args = ["test"], run_on_startup = false }
+run_watch = { program = "cargo", args = ["run", "--bin", "ddw"], run_on_startup = false }
+run_api = { program = "cargo", args = ["run", "--bin", "dda"], run_on_startup = true }

@@ -44,6 +44,8 @@ struct ProjectConfig {
 struct ModeConfig {
     program: String,
     args: Vec<String>,
+    #[serde(default)]
+    run_on_startup: bool,
 }
 
 #[tokio::main]
@@ -68,6 +70,20 @@ async fn main() -> Result<()> {
     for (project_name, project_config) in &config.projects {
         let modes = project_config.modes.as_ref().unwrap_or(&config.global.default_modes);
         info!(" --> {} ({})", project_name, modes.join(", "));
+
+        // Execute commands marked to run on startup
+        for (mode, mode_config) in &project_config.commands {
+            if mode_config.run_on_startup {
+                info!("Running startup command for {}: {}", project_name, mode);
+                let project_dir = PathBuf::from(&project_config.project_dir);
+                if let Err(e) = Command::new(&mode_config.program)
+                    .args(&mode_config.args)
+                    .current_dir(&project_dir)
+                    .spawn() {
+                    error!("Failed to start startup process for {}: {}", project_name, e);
+                }
+            }
+        }
     }
 
     let (tx, mut rx) = mpsc::channel(config.global.channel_capacity.unwrap_or(10));
