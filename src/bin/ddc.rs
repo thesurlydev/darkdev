@@ -1,5 +1,9 @@
 use clap::{Parser, Subcommand};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
+
+const API_URL: &str = "http://127.0.0.1:3000";
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -47,25 +51,89 @@ enum Commands {
     List,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[derive(Debug, Serialize, Deserialize)]
+struct Project {
+    name: String,
+    path: String,
+    mode: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InitProject {
+    name: String,
+    project_type: String,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
+    let client = Client::new();
 
     match &cli.command {
         Commands::Init { name, project_type } => {
-            println!("Initializing new {} project: {}", project_type, name);
-            // TODO: Implement project initialization
+            let init_project = InitProject {
+                name: name.clone(),
+                project_type: project_type.clone(),
+            };
+            
+            let response = client
+                .post(format!("{}/projects/init", API_URL))
+                .json(&init_project)
+                .send()
+                .await?
+                .json::<Project>()
+                .await?;
+                
+            println!("Initialized project: {:?}", response);
         }
         Commands::Add { name, path, mode } => {
-            println!("Adding project {} at {} with mode {}", name, path, mode);
-            // TODO: Implement project addition to watch-config.toml
+            let project = Project {
+                name: name.clone(),
+                path: path.clone(),
+                mode: mode.clone(),
+            };
+            
+            let response = client
+                .post(format!("{}/projects", API_URL))
+                .json(&project)
+                .send()
+                .await?
+                .json::<Project>()
+                .await?;
+                
+            println!("Added project: {:?}", response);
         }
         Commands::Remove { name } => {
-            println!("Removing project {}", name);
-            // TODO: Implement project removal from watch-config.toml
+            let project = Project {
+                name: name.clone(),
+                path: String::new(), // Not needed for removal
+                mode: String::new(),
+            };
+            
+            client
+                .post(format!("{}/projects/remove", API_URL))
+                .json(&project)
+                .send()
+                .await?;
+                
+            println!("Removed project: {}", name);
         }
         Commands::List => {
-            println!("Listing all projects");
-            // TODO: Implement project listing
+            let projects = client
+                .get(format!("{}/projects", API_URL))
+                .send()
+                .await?
+                .json::<Vec<Project>>()
+                .await?;
+                
+            if projects.is_empty() {
+                println!("No projects found");
+            } else {
+                println!("Projects:");
+                for project in projects {
+                    println!("  {} ({}): {}", project.name, project.mode, project.path);
+                }
+            }
         }
     }
 

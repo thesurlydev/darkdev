@@ -75,9 +75,9 @@ run = { program = "cargo", args = ["run"] }
 # Commands specific to darkdev
 [projects.darkdev]
 project_dir = "/Users/shane/projects/darkdev"
-watch_paths = ["src", "Cargo.toml", "watch-config.toml"]
+watch_paths = ["src/bin", "Cargo.toml", "watch-config.toml"]
 dependencies = []
-mode = "run"
+mode = "compile"
 
 [projects.darkdev.commands]
 compile = { program = "cargo", args = ["build"] }
