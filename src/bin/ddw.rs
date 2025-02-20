@@ -16,7 +16,7 @@ use tokio::sync::mpsc;
 
 #[derive(Debug, Deserialize, Clone)]
 struct GlobalConfig {
-    default_mode: String,
+    default_modes: Vec<String>,
     logging_level: String,
     watch_paths: Vec<String>,
     watch_extensions: Vec<String>,
@@ -36,7 +36,7 @@ struct ProjectConfig {
     watch_paths: Option<Vec<String>>,
     watch_extensions: Option<Vec<String>>,
     dependencies: Vec<String>,
-    mode: Option<String>,
+    modes: Option<Vec<String>>,
     commands: HashMap<String, ModeConfig>,
 }
 
@@ -66,8 +66,8 @@ async fn main() -> Result<()> {
 
     // Log watched projects and their modes    
     for (project_name, project_config) in &config.projects {
-        let mode = project_config.mode.as_ref().unwrap_or(&config.global.default_mode);
-        info!(" --> {} ({})", project_name, mode);
+        let modes = project_config.modes.as_ref().unwrap_or(&config.global.default_modes);
+        info!(" --> {} ({})", project_name, modes.join(", "));
     }
 
     let (tx, mut rx) = mpsc::channel(config.global.channel_capacity.unwrap_or(10));
@@ -168,30 +168,35 @@ fn execute_command(
     project_config: &ProjectConfig,
     running_processes: Arc<Mutex<HashMap<String, Option<Child>>>>,
 ) {
-    let mode = project_config.mode.as_deref().unwrap_or(&global_config.default_mode);
+    let modes = project_config.modes.as_ref().unwrap_or(&global_config.default_modes);
+    let project_dir = PathBuf::from(&project_config.project_dir);
 
-    if let Some(mode_config) = project_config.commands.get(mode) {
-        let project_dir = PathBuf::from(&project_config.project_dir);
+    for mode in modes {
+        if let Some(mode_config) = project_config.commands.get(mode) {
+            // Only terminate previous processes for the first mode
+            if mode == &modes[0] {
+                terminate_running_process(&project_config.project_dir, &running_processes);
+            }
 
-        terminate_running_process(&project_config.project_dir, &running_processes);
+            info!(target: &project_dir.display().to_string(), "Executing: {}", mode);
 
-        info!(target: &project_dir.display().to_string(), "Executing: {}", mode);
+            let child = Command::new(&mode_config.program)
+                .args(&mode_config.args)
+                .current_dir(&project_dir)
+                .spawn()
+                .map_err(|e| {
+                    error!(target: &project_dir.display().to_string(), "Failed to start process: {}", e);
+                }).expect("Failed to start process");
 
-        let child = Command::new(&mode_config.program)
-            .args(&mode_config.args)
-            .current_dir(&project_dir)
-            .spawn()
-            .map_err(|e| {
-                error!(target: &project_dir.display().to_string(), "Failed to start process: {}", e);
-            }).expect("Failed to start process");
-
-
-        running_processes
-            .lock()
-            .unwrap()
-            .insert(project_config.project_dir.clone(), Some(child));
-    } else {
-        info!(target: &project_config.project_dir, "No command defined for mode '{}'. Skipping...",mode);
+            if mode == &modes[modes.len() - 1] {
+                running_processes
+                    .lock()
+                    .unwrap()
+                    .insert(project_config.project_dir.clone(), Some(child));
+            }
+        } else {
+            info!(target: &project_config.project_dir, "No command defined for mode '{}'. Skipping...", mode);
+        }
     }
 }
 

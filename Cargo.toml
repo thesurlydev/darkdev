@@ -6,6 +6,10 @@ description = "A development tool for watching and managing multiple projects"
 authors = ["Shane Witbeck"]
 
 [[bin]]
+name = "dda"
+path = "src/bin/dda.rs"
+
+[[bin]]
 name = "ddw"
 path = "src/bin/ddw.rs"
 

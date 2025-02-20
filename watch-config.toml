@@ -3,7 +3,7 @@
 # Specify the default channel capacity
 channel_capacity = 100
 # Specify the default mode for all projects (can be overridden per project)
-default_mode = "compile"
+default_modes = ["compile"]
 # Specify the default debounce delay in milliseconds
 debounce_delay = 1000
 # Specify the default logging level for all projects (can be overridden per project)
@@ -25,8 +25,8 @@ watch_paths = ["src", "pom.xml"]
 # Inherit global file extensions (no need to redefine)
 # List of dependent projects that should be built first
 dependencies = ["project_b"]
-# Override the default mode if needed
-mode = "run"
+# Override the default modes if needed
+modes = ["run"]
 
 # Commands specific to each mode for Project A
 [projects.project_a.commands]
@@ -39,7 +39,7 @@ run = { program = "mvn", args = ["-q", "compile", "exec:java", "-Dexec.mainClass
 project_dir = "project-b"
 # Inherit global watch paths and extensions
 dependencies = []
-mode = "install"
+modes = ["install"]
 
 # Commands specific to each mode for Project B
 [projects.project_b.commands]
@@ -52,7 +52,7 @@ install = { program = "mvn", args = ["-q", "install"] }
 project_dir = "/Users/shane/projects/kotlin-minimal-example"
 watch_paths = ["src/main/kotlin", "build.gradle.kts"]
 dependencies = []
-mode = "jar_run"
+modes = ["jar_run"]
 
 [projects.kotlin_minimal_example.commands]
 compile = { program = "./gradlew", args = ["clean", "build"] }
@@ -60,26 +60,16 @@ test = { program = "./gradlew", args = ["test"] }
 jar = { program = "./gradlew", args = ["jar"] }
 jar_run = { program = "java", args = ["-jar", "build/libs/kotlin-minimal-example-1.0-SNAPSHOT-standalone.jar"] }
 
-# Commands specific to codeloop
-[projects.codeloop]
-project_dir = "/Users/shane/projects/codeloop"
-watch_paths = ["src", "Cargo.toml"]
-dependencies = []
-mode = "run"
-
-[projects.codeloop.commands]
-compile = { program = "cargo", args = ["build"] }
-test = { program = "cargo", args = ["test"] }
-run = { program = "cargo", args = ["run"] }
 
 # Commands specific to darkdev
 [projects.darkdev]
 project_dir = "/Users/shane/projects/darkdev"
 watch_paths = ["src/bin", "Cargo.toml", "watch-config.toml"]
 dependencies = []
-mode = "compile"
+modes = ["run_api"]
 
 [projects.darkdev.commands]
 compile = { program = "cargo", args = ["build"] }
 test = { program = "cargo", args = ["test"] }
-run = { program = "cargo", args = ["run", "--bin", "ddw"] }
+run_watch = { program = "cargo", args = ["run", "--bin", "ddw"] }
+run_api = { program = "cargo", args = ["run", "--bin", "dda"] }
