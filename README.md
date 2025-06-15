@@ -1,11 +1,18 @@
 # darkdev
 
-A development toolkit written in Rust that provides real-time monitoring and project management capabilities. It consists of two main components:
+A development toolkit written in Rust that provides real-time monitoring and project management capabilities. It consists of three main components:
 
 - `ddw` (DarkDev Watch): A file watcher that monitors multiple projects and executes commands when changes are detected
 - `ddc` (DarkDev Command): A CLI tool for managing projects and their configurations
+- `dda` (DarkDev API): HTTP API server for project management operations
 
 ## Features
+
+### Interactive Setup Wizard 
+* **Smart Project Detection**: Automatically detects Java (Maven), Rust (Cargo), Node.js, and Python projects
+* **Guided Configuration**: Step-by-step wizard to configure DarkDev for your environment
+* **Template-Based Setup**: Pre-configured templates for common project types
+* **Beautiful CLI**: Colorful, interactive prompts with sensible defaults
 
 ### File Watcher (ddw)
 * **Multi-Project Support**: Watch and manage multiple projects simultaneously
@@ -17,9 +24,15 @@ A development toolkit written in Rust that provides real-time monitoring and pro
   * Global defaults with per-project overrides
 
 ### Project Manager (ddc)
+* **Interactive Setup**: `ddc setup` - guided configuration wizard
 * **Project Initialization**: Bootstrap new projects with predefined templates
 * **Configuration Management**: Add, remove, and list projects in watch-config.toml
 * **Project Modes**: Configure different operational modes (compile, test, run) per project
+
+### API Server (dda)
+* **REST API**: HTTP endpoints for project management
+* **Real-time Operations**: Add, remove, and list projects via API
+* **Health Monitoring**: Built-in health check endpoints
 
 ## Installation
 
@@ -30,11 +43,50 @@ cargo build --release
 The binaries will be available in `target/release/`:
 - `ddw`: The file watcher
 - `ddc`: The project management CLI
+- `dda`: The API server
+
+## Quick Start
+
+### 1. Interactive Setup (Recommended)
+
+The easiest way to get started is with the interactive setup wizard:
+
+```bash
+# Build DarkDev
+cargo build --release
+
+# Run the interactive setup wizard
+./target/release/ddc setup
+```
+
+The wizard will:
+- Scan your directory for projects (Java, Rust, Node.js, Python)
+- Let you select which projects to include
+- Configure global settings (debounce delay, logging level)
+- Generate a complete `watch-config.toml` configuration
+- Provide next steps to get you running
+
+### 2. Manual Setup
+
+If you prefer manual configuration:
 
 ## Usage
 
 ### Project Management (ddc)
 
+#### Interactive Setup
+```bash
+# Run the setup wizard in current directory
+ddc setup
+
+# Run setup wizard with custom output directory
+ddc setup --output /path/to/project
+
+# Non-interactive setup (coming soon)
+ddc setup --non-interactive
+```
+
+#### Manual Project Management
 Use the `ddc` command to manage your projects:
 
 ```bash

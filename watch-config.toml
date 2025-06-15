@@ -61,7 +61,7 @@ jar = { program = "./gradlew", args = ["jar"], run_on_startup = false }
 jar_run = { program = "java", args = ["-jar", "build/libs/kotlin-minimal-example-1.0-SNAPSHOT-standalone.jar"], run_on_startup = false }
 
 
-# Commands specific to darkdev
+# darkdev
 [projects.darkdev]
 project_dir = "/Users/shane/projects/darkdev"
 watch_paths = ["src/bin", "Cargo.toml", "watch-config.toml"]
