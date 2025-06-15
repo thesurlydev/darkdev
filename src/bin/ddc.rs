@@ -66,6 +66,17 @@ enum Commands {
 
     /// List all projects in watch-config.toml
     List,
+
+    /// Validate watch-config.toml configuration
+    Validate {
+        /// Path to configuration file (default: watch-config.toml)
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+
+        /// Show detailed validation information
+        #[arg(short, long)]
+        verbose: bool,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -136,6 +147,69 @@ struct DetectedProject {
     name: String,
     path: PathBuf,
     project_type: String,
+}
+
+#[derive(Debug)]
+struct ValidationError {
+    field: String,
+    message: String,
+    severity: ValidationSeverity,
+}
+
+#[derive(Debug, PartialEq)]
+enum ValidationSeverity {
+    Error,
+    Warning,
+    Info,
+}
+
+#[derive(Debug)]
+struct ValidationResult {
+    errors: Vec<ValidationError>,
+    warnings: Vec<ValidationError>,
+    info: Vec<ValidationError>,
+}
+
+impl ValidationResult {
+    fn new() -> Self {
+        Self {
+            errors: Vec::new(),
+            warnings: Vec::new(),
+            info: Vec::new(),
+        }
+    }
+
+    fn add_error(&mut self, field: String, message: String) {
+        self.errors.push(ValidationError {
+            field,
+            message,
+            severity: ValidationSeverity::Error,
+        });
+    }
+
+    fn add_warning(&mut self, field: String, message: String) {
+        self.warnings.push(ValidationError {
+            field,
+            message,
+            severity: ValidationSeverity::Warning,
+        });
+    }
+
+    fn add_info(&mut self, field: String, message: String) {
+        self.info.push(ValidationError {
+            field,
+            message,
+            severity: ValidationSeverity::Info,
+        });
+    }
+
+    fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
+    fn is_valid(&self) -> bool {
+        self.errors.is_empty()
+    }
 }
 
 fn get_project_templates() -> Vec<ProjectTemplate> {
@@ -501,6 +575,299 @@ fn read_projects_from_config(config_path: &Path) -> Result<HashMap<String, Proje
     }
 }
 
+fn validate_config(config_path: &Path, verbose: bool) -> Result<ValidationResult, Box<dyn Error>> {
+    let config_str = fs::read_to_string(config_path)?;
+    let config: WatchConfig = toml::from_str(&config_str)?;
+
+    let mut result = ValidationResult::new();
+
+    // Validate global configuration
+    validate_global_config(&config.global, &mut result);
+
+    // Validate project configurations
+    validate_projects_config(&config.projects, &mut result, config_path.parent().unwrap_or(Path::new(".")));
+
+    // Print validation results if verbose
+    if verbose {
+        print_validation_results(&result);
+    }
+
+    Ok(result)
+}
+
+fn validate_global_config(global: &Option<GlobalConfig>, result: &mut ValidationResult) {
+    if let Some(global) = global {
+        // Validate channel capacity
+        if let Some(capacity) = global.channel_capacity {
+            if capacity == 0 {
+                result.add_error("global.channel_capacity".to_string(), "Channel capacity must be greater than 0".to_string());
+            } else if capacity > 10000 {
+                result.add_warning("global.channel_capacity".to_string(), "Channel capacity is very high, consider reducing it".to_string());
+            }
+        } else {
+            result.add_warning("global.channel_capacity".to_string(), "Channel capacity not specified, using default".to_string());
+        }
+
+        // Validate default modes
+        if let Some(modes) = &global.default_modes {
+            if modes.is_empty() {
+                result.add_error("global.default_modes".to_string(), "Default modes cannot be empty".to_string());
+            }
+            for mode in modes {
+                if mode.trim().is_empty() {
+                    result.add_error("global.default_modes".to_string(), "Mode names cannot be empty".to_string());
+                }
+            }
+        } else {
+            result.add_error("global.default_modes".to_string(), "Default modes are required".to_string());
+        }
+
+        // Validate debounce delay
+        if let Some(delay) = global.debounce_delay {
+            if delay == 0 {
+                result.add_warning("global.debounce_delay".to_string(), "Debounce delay of 0 may cause excessive rebuilds".to_string());
+            } else if delay > 10000 {
+                result.add_warning("global.debounce_delay".to_string(), "Debounce delay is very high, may slow down development".to_string());
+            }
+        } else {
+            result.add_error("global.debounce_delay".to_string(), "Debounce delay is required".to_string());
+        }
+
+        // Validate logging level
+        if let Some(level) = &global.logging_level {
+            let valid_levels = ["trace", "debug", "info", "warn", "error"];
+            if !valid_levels.contains(&level.as_str()) {
+                result.add_error("global.logging_level".to_string(), 
+                    format!("Invalid logging level '{}'. Valid levels: {}", level, valid_levels.join(", ")));
+            }
+        } else {
+            result.add_error("global.logging_level".to_string(), "Logging level is required".to_string());
+        }
+
+        // Validate watch paths
+        if let Some(paths) = &global.watch_paths {
+            if paths.is_empty() {
+                result.add_error("global.watch_paths".to_string(), "Watch paths cannot be empty".to_string());
+            }
+            for path in paths {
+                if path.trim().is_empty() {
+                    result.add_error("global.watch_paths".to_string(), "Watch path cannot be empty".to_string());
+                }
+            }
+        } else {
+            result.add_error("global.watch_paths".to_string(), "Watch paths are required".to_string());
+        }
+
+        // Validate watch extensions
+        if let Some(extensions) = &global.watch_extensions {
+            if extensions.is_empty() {
+                result.add_error("global.watch_extensions".to_string(), "Watch extensions cannot be empty".to_string());
+            }
+            for ext in extensions {
+                if ext.trim().is_empty() {
+                    result.add_error("global.watch_extensions".to_string(), "Watch extension cannot be empty".to_string());
+                } else if ext.starts_with('.') {
+                    result.add_warning("global.watch_extensions".to_string(), 
+                        format!("Extension '{}' starts with '.', this may be unintended", ext));
+                }
+            }
+        } else {
+            result.add_error("global.watch_extensions".to_string(), "Watch extensions are required".to_string());
+        }
+    } else {
+        result.add_error("global".to_string(), "Global configuration is required".to_string());
+    }
+}
+
+fn validate_projects_config(projects: &Option<HashMap<String, ProjectConfig>>, result: &mut ValidationResult, base_path: &Path) {
+    if let Some(projects) = projects {
+        if projects.is_empty() {
+            result.add_warning("projects".to_string(), "No projects configured".to_string());
+            return;
+        }
+
+        let project_names: Vec<String> = projects.keys().cloned().collect();
+
+        for (name, project) in projects {
+            validate_single_project(name, project, result, base_path, &project_names);
+        }
+
+        // Validate dependency cycles
+        validate_dependency_cycles(projects, result);
+    } else {
+        result.add_error("projects".to_string(), "Projects configuration is required".to_string());
+    }
+}
+
+fn validate_single_project(name: &str, project: &ProjectConfig, result: &mut ValidationResult, base_path: &Path, all_project_names: &[String]) {
+    // Validate project directory
+    if project.project_dir.is_empty() {
+        result.add_error(format!("projects.{}.project_dir", name), "Project directory is required".to_string());
+    } else {
+        let project_path = base_path.join(&project.project_dir);
+        if !project_path.exists() {
+            result.add_error(format!("projects.{}.project_dir", name), 
+                format!("Project directory '{}' does not exist", project.project_dir));
+        } else if !project_path.is_dir() {
+            result.add_error(format!("projects.{}.project_dir", name), 
+                format!("Project directory '{}' is not a directory", project.project_dir));
+        }
+    }
+
+    // Validate watch paths
+    if let Some(paths) = &project.watch_paths {
+        if paths.is_empty() {
+            result.add_warning(format!("projects.{}.watch_paths", name), "Watch paths are empty".to_string());
+        }
+        for path in paths {
+            if path.trim().is_empty() {
+                result.add_error(format!("projects.{}.watch_paths", name), "Watch path cannot be empty".to_string());
+            }
+        }
+    } else {
+        result.add_info(format!("projects.{}.watch_paths", name), "Using global watch paths".to_string());
+    }
+
+    // Validate watch extensions
+    if let Some(extensions) = &project.watch_extensions {
+        if extensions.is_empty() {
+            result.add_warning(format!("projects.{}.watch_extensions", name), "Watch extensions are empty".to_string());
+        }
+        for ext in extensions {
+            if ext.trim().is_empty() {
+                result.add_error(format!("projects.{}.watch_extensions", name), "Watch extension cannot be empty".to_string());
+            } else if ext.starts_with('.') {
+                result.add_warning(format!("projects.{}.watch_extensions", name), 
+                    format!("Extension '{}' starts with '.', this may be unintended", ext));
+            }
+        }
+    } else {
+        result.add_info(format!("projects.{}.watch_extensions", name), "Using global watch extensions".to_string());
+    }
+
+    // Validate dependencies
+    if let Some(dependencies) = &project.dependencies {
+        for dep in dependencies {
+            if dep.trim().is_empty() {
+                result.add_error(format!("projects.{}.dependencies", name), "Dependency name cannot be empty".to_string());
+            } else if dep == name {
+                result.add_error(format!("projects.{}.dependencies", name), "Project cannot depend on itself".to_string());
+            } else if !all_project_names.contains(dep) {
+                result.add_error(format!("projects.{}.dependencies", name), 
+                    format!("Dependency '{}' does not exist in configuration", dep));
+            }
+        }
+    }
+
+    // Validate modes
+    if let Some(modes) = &project.modes {
+        if modes.is_empty() {
+            result.add_error(format!("projects.{}.modes", name), "Modes cannot be empty".to_string());
+        }
+        for mode in modes {
+            if mode.trim().is_empty() {
+                result.add_error(format!("projects.{}.modes", name), "Mode name cannot be empty".to_string());
+            }
+        }
+    } else {
+        result.add_info(format!("projects.{}.modes", name), "Using global default modes".to_string());
+    }
+
+    // Validate commands
+    if let Some(commands) = &project.commands {
+        if commands.is_empty() {
+            result.add_warning(format!("projects.{}.commands", name), "No commands configured".to_string());
+        }
+        for (mode, command) in commands {
+            if command.program.trim().is_empty() {
+                result.add_error(format!("projects.{}.commands.{}.program", name, mode), "Command program cannot be empty".to_string());
+            }
+            if command.args.is_empty() {
+                result.add_info(format!("projects.{}.commands.{}.args", name, mode), "No arguments specified for command".to_string());
+            }
+        }
+    } else {
+        result.add_warning(format!("projects.{}.commands", name), "No commands configured".to_string());
+    }
+}
+
+fn validate_dependency_cycles(projects: &HashMap<String, ProjectConfig>, result: &mut ValidationResult) {
+    fn has_cycle(
+        current: &str,
+        target: &str,
+        projects: &HashMap<String, ProjectConfig>,
+        visited: &mut std::collections::HashSet<String>,
+        path: &mut Vec<String>,
+    ) -> bool {
+        if current == target && !path.is_empty() {
+            return true;
+        }
+
+        if visited.contains(current) {
+            return false;
+        }
+
+        visited.insert(current.to_string());
+        path.push(current.to_string());
+
+        if let Some(project) = projects.get(current) {
+            if let Some(dependencies) = &project.dependencies {
+                for dep in dependencies {
+                    if has_cycle(dep, target, projects, visited, path) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        path.pop();
+        false
+    }
+
+    for project_name in projects.keys() {
+        let mut visited = std::collections::HashSet::new();
+        let mut path = Vec::new();
+        
+        if has_cycle(project_name, project_name, projects, &mut visited, &mut path) {
+            result.add_error(format!("projects.{}.dependencies", project_name), 
+                "Circular dependency detected".to_string());
+        }
+    }
+}
+
+fn print_validation_results(result: &ValidationResult) {
+    println!("\n{}", style("Validation Results:").bold().underlined());
+    
+    if !result.errors.is_empty() {
+        println!("\n{}", style("Errors:").red().bold());
+        for error in &result.errors {
+            println!("  {} {}", style("✗").red(), style(&error.field).red().bold());
+            println!("    {}", error.message);
+        }
+    }
+
+    if !result.warnings.is_empty() {
+        println!("\n{}", style("Warnings:").yellow().bold());
+        for warning in &result.warnings {
+            println!("  {} {}", style("⚠").yellow(), style(&warning.field).yellow().bold());
+            println!("    {}", warning.message);
+        }
+    }
+
+    if !result.info.is_empty() {
+        println!("\n{}", style("Info:").blue().bold());
+        for info in &result.info {
+            println!("  {} {}", style("ℹ").blue(), style(&info.field).blue().bold());
+            println!("    {}", info.message);
+        }
+    }
+
+    println!("\n{}", style("Summary:").bold());
+    println!("  Errors: {}", style(result.errors.len()).red());
+    println!("  Warnings: {}", style(result.warnings.len()).yellow());
+    println!("  Info: {}", style(result.info.len()).blue());
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
@@ -620,6 +987,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
             } else {
                 println!("No watch-config.toml found in current directory");
                 eprintln!("Run 'ddc setup' to create a configuration file");
+            }
+        }
+        Commands::Validate { config, verbose } => {
+            let config_path = config.as_ref()
+                .map(|p| p.as_path())
+                .unwrap_or_else(|| Path::new("watch-config.toml"));
+
+            if !config_path.exists() {
+                eprintln!("Error: Configuration file not found");
+                return Ok(());
+            }
+
+            let result = validate_config(config_path, *verbose)?;
+
+            if result.is_valid() {
+                println!("Configuration is valid");
+            } else {
+                eprintln!("Configuration is invalid");
             }
         }
     }
